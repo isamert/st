@@ -2750,7 +2750,7 @@ void set_notifmode(int type, KeySym ksym) {
         col = term.col, bot = term.bot;
         g = xmalloc(col * sizeof(Glyph));
         memcpy(g, term.line[bot], col * sizeof(Glyph));
-    
+
     }
     else if ( ksym == -2 )
         memcpy(term.line[bot], g, col * sizeof(Glyph));
@@ -2803,7 +2803,7 @@ void search(int selectsearch_mode, Rune *target, int ptarget, int incr, int type
         }
         if ( r != NULL )    break;
     }
-        
+
     if ( i != bound ) {
         term.c.y = i / term.col, term.c.x = i % term.col;
         select_or_drawcursor(selectsearch_mode, type);
@@ -2817,8 +2817,8 @@ int trt_kbdselect(KeySym ksym, char *buf, int len) {
     static int sens, quant;
     static char selectsearch_mode;
     int i, bound, *xy;
-    
-    
+
+
     if ( selectsearch_mode & 2 ) {
 		if ( ksym == XK_Return ) {
 			selectsearch_mode ^= 2;
@@ -2844,7 +2844,7 @@ int trt_kbdselect(KeySym ksym, char *buf, int len) {
         if ( ksym != XK_BackSpace )
             search(selectsearch_mode, &target[0], ptarget, sens, type, &cu);
 
-        term.dirty[term.bot] = 1; 
+        term.dirty[term.bot] = 1;
         drawregion(0, term.bot, term.col, term.bot + 1);
         return 0;
     }
@@ -2855,6 +2855,7 @@ int trt_kbdselect(KeySym ksym, char *buf, int len) {
         cu.x = term.c.x, cu.y = term.c.y;
         set_notifmode(0, ksym);
         return MODE_KBDSELECT;
+    case XK_v :
     case XK_s :
         if ( selectsearch_mode & 1 )
             selclear();
@@ -2862,6 +2863,7 @@ int trt_kbdselect(KeySym ksym, char *buf, int len) {
             selstart(term.c.x, term.c.y, 0);
         set_notifmode(selectsearch_mode ^= 1, ksym);
         break;
+    case XK_V :
     case XK_t :
         selextend(term.c.x, term.c.y, type ^= 3, i = 0);  /* 2 fois */
         selextend(term.c.x, term.c.y, type, i = 0);
@@ -2887,8 +2889,9 @@ int trt_kbdselect(KeySym ksym, char *buf, int len) {
     case XK_n :
     case XK_N :
         if ( ptarget )
-            search(selectsearch_mode, &target[0], ptarget, (ksym == XK_n) ? -1 : 1, type, &cu);
+            search(selectsearch_mode, &target[0], ptarget, (ksym == XK_N) ? -1 : 1, type, &cu);
         break;
+    case XK_0 :
     case XK_BackSpace :
         term.c.x = 0;
         select_or_drawcursor(selectsearch_mode, type);
@@ -2897,10 +2900,12 @@ int trt_kbdselect(KeySym ksym, char *buf, int len) {
         term.c.x = term.col - 1;
         select_or_drawcursor(selectsearch_mode, type);
         break;
+    case XK_g :
     case XK_Home :
         term.c.x = 0, term.c.y = 0;
         select_or_drawcursor(selectsearch_mode, type);
         break;
+    case XK_G :
     case XK_End :
         term.c.x = cu.x, term.c.y = cu.y;
         select_or_drawcursor(selectsearch_mode, type);
