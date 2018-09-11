@@ -14,6 +14,7 @@
 #include <X11/keysym.h>
 #include <X11/Xft/Xft.h>
 #include <X11/XKBlib.h>
+#include <X11/Xresource.h>
 
 static char *argv0;
 #include "arg.h"
@@ -43,10 +44,27 @@ typedef struct {
 	signed char appcursor; /* application cursor */
 } Key;
 
+/* Xresources preferences */
+enum resource_type {
+	STRING = 0,
+	INTEGER = 1,
+	FLOAT = 2
+};
+
+typedef struct {
+	char *name;
+	enum resource_type type;
+	void *dst;
+} ResourcePref;
+
 /* X modifiers */
 #define XK_ANY_MOD    UINT_MAX
 #define XK_NO_MOD     0
 #define XK_SWITCH_MOD (1<<13)
+
+/* alpha */
+#define OPAQUE 0Xff
+#define USE_ARGB (alpha != OPAQUE && opt_embed == NULL)
 
 /* function definitions used in config.h */
 static void clipcopy(const Arg *);
@@ -80,6 +98,7 @@ typedef struct {
 	int w, h; /* window width and height */
 	int ch; /* char height */
 	int cw; /* char width  */
+	int cyo; /* char y offset */
 	int mode; /* window state/mode flags */
 	int cursor; /* cursor style */
 } TermWindow;
@@ -98,6 +117,7 @@ typedef struct {
 	XSetWindowAttributes attrs;
 	int scr;
 	int isfixed; /* is fixed geometry? */
+	int depth; /* bit depth */
 	int l, t; /* left and top offset */
 	int gm; /* geometry mask */
 } XWindow;
@@ -409,6 +429,7 @@ bpress(XEvent *e)
 {
 	struct timespec now;
 	MouseShortcut *ms;
+	MouseKey *mk;
 	int snap;
 
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forceselmod)) {
@@ -416,10 +437,19 @@ bpress(XEvent *e)
 		return;
 	}
 
-	for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
-		if (e->xbutton.button == ms->b
-				&& match(ms->mask, e->xbutton.state)) {
-			ttywrite(ms->s, strlen(ms->s), 1);
+	if (IS_SET(MODE_ALTSCREEN))
+		for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
+			if (e->xbutton.button == ms->b
+					&& match(ms->mask, e->xbutton.state)) {
+				ttywrite(ms->s, strlen(ms->s), 1);
+				return;
+			}
+		}
+
+	for (mk = mkeys; mk < mkeys + LEN(mkeys); mk++) {
+		if (e->xbutton.button == mk->b
+				&& match(mk->mask, e->xbutton.state)) {
+			mk->func(&mk->arg);
 			return;
 		}
 	}
@@ -688,7 +718,7 @@ xresize(int col, int row)
 
 	XFreePixmap(xw.dpy, xw.buf);
 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
-			DefaultDepth(xw.dpy, xw.scr));
+			xw.depth);
 	XftDrawChange(xw.draw, xw.buf);
 	xclear(0, 0, win.w, win.h);
 
@@ -748,6 +778,22 @@ xloadcols(void)
 			else
 				die("could not allocate color %d\n", i);
 		}
+
+	/* set alpha value of bg color */
+	if (USE_ARGB) {
+        // https://github.com/gnotclub/xst/pull/42
+		// X11 uses premultiplied alpha values (i.e. 50% opacity white is
+		// 0x7f7f7f7f, not 0x7fffffff), so multiply color by alpha
+		dc.col[defaultbg].color.alpha = (0xffff * alpha) / OPAQUE; //0xcccc;
+		dc.col[defaultbg].color.red   = (dc.col[defaultbg].color.red   * alpha) / OPAQUE;
+		dc.col[defaultbg].color.green = (dc.col[defaultbg].color.green * alpha) / OPAQUE;
+		dc.col[defaultbg].color.blue  = (dc.col[defaultbg].color.blue  * alpha) / OPAQUE;
+
+		dc.col[defaultbg].pixel =
+			((((dc.col[defaultbg].pixel & 0x00ff00ff) * alpha) / OPAQUE) & 0x00ff00ff) |
+			((((dc.col[defaultbg].pixel & 0x0000ff00) * alpha) / OPAQUE) & 0x0000ff00) |
+	        alpha << 24;
+	}
 	loaded = 1;
 }
 
@@ -769,6 +815,17 @@ xsetcolorname(int x, const char *name)
 	return 0;
 }
 
+void
+xtermclear(int col1, int row1, int col2, int row2)
+{
+	XftDrawRect(xw.draw,
+			&dc.col[IS_SET(MODE_REVERSE) ? defaultfg : defaultbg],
+			borderpx + col1 * win.cw,
+			borderpx + row1 * win.ch,
+			(col2-col1+1) * win.cw,
+			(row2-row1+1) * win.ch);
+}
+
 /*
  * Absolute coordinates.
  */
@@ -783,8 +840,8 @@ xclear(int x1, int y1, int x2, int y2)
 void
 xhints(void)
 {
-	XClassHint class = {opt_name ? opt_name : termname,
-	                    opt_class ? opt_class : termname};
+	XClassHint class = {opt_name ? opt_name : "st",
+	                    opt_class ? opt_class : "St"};
 	XWMHints wm = {.flags = InputHint, .input = 1};
 	XSizeHints *sizeh;
 
@@ -955,6 +1012,7 @@ xloadfonts(char *fontstr, double fontsize)
 	/* Setting character width and height. */
 	win.cw = ceilf(dc.font.width * cwscale);
 	win.ch = ceilf(dc.font.height * chscale);
+	win.cyo = ceilf(dc.font.height * (chscale - 1) / 2);
 
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
@@ -1008,7 +1066,40 @@ xinit(int cols, int rows)
 	if (!(xw.dpy = XOpenDisplay(NULL)))
 		die("can't open display\n");
 	xw.scr = XDefaultScreen(xw.dpy);
-	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
+	xw.depth = (USE_ARGB) ? 32: XDefaultDepth(xw.dpy, xw.scr);
+	if (!USE_ARGB)
+		xw.vis = XDefaultVisual(xw.dpy, xw.scr);
+	else {
+		XVisualInfo *vis;
+		XRenderPictFormat *fmt;
+		int nvi;
+		int i;
+
+		XVisualInfo tpl = {
+			.screen = xw.scr,
+			.depth = 32,
+			.class = TrueColor
+		};
+
+		vis = XGetVisualInfo(xw.dpy,
+				VisualScreenMask | VisualDepthMask | VisualClassMask,
+				&tpl, &nvi);
+		xw.vis = NULL;
+		for (i = 0; i < nvi; i++) {
+			fmt = XRenderFindVisualFormat(xw.dpy, vis[i].visual);
+			if (fmt->type == PictTypeDirect && fmt->direct.alphaMask) {
+				xw.vis = vis[i].visual;
+				break;
+			}
+		}
+
+		XFree(vis);
+
+		if (!xw.vis) {
+			fprintf(stderr, "Couldn't find ARGB visual.\n");
+			exit(1);
+		}
+	}
 
 	/* font */
 	if (!FcInit())
@@ -1018,7 +1109,11 @@ xinit(int cols, int rows)
 	xloadfonts(usedfont, 0);
 
 	/* colors */
-	xw.cmap = XDefaultColormap(xw.dpy, xw.scr);
+	if (!USE_ARGB)
+		xw.cmap = XDefaultColormap(xw.dpy, xw.scr);
+	else
+		xw.cmap = XCreateColormap(xw.dpy, XRootWindow(xw.dpy, xw.scr),
+				xw.vis, None);
 	xloadcols();
 
 	/* adjust fixed window geometry */
@@ -1041,16 +1136,15 @@ xinit(int cols, int rows)
 	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0))))
 		parent = XRootWindow(xw.dpy, xw.scr);
 	xw.win = XCreateWindow(xw.dpy, parent, xw.l, xw.t,
-			win.w, win.h, 0, XDefaultDepth(xw.dpy, xw.scr), InputOutput,
+			win.w, win.h, 0, xw.depth, InputOutput,
 			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
 			| CWEventMask | CWColormap, &xw.attrs);
 
 	memset(&gcvalues, 0, sizeof(gcvalues));
 	gcvalues.graphics_exposures = False;
-	dc.gc = XCreateGC(xw.dpy, parent, GCGraphicsExposures,
-			&gcvalues);
-	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
-			DefaultDepth(xw.dpy, xw.scr));
+	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h, xw.depth);
+	dc.gc = XCreateGC(xw.dpy, (USE_ARGB) ? xw.buf: parent,
+			GCGraphicsExposures, &gcvalues);
 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
@@ -1136,7 +1230,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	FcCharSet *fccharset;
 	int i, f, numspecs = 0;
 
-	for (i = 0, xp = winx, yp = winy + font->ascent; i < len; ++i) {
+	for (i = 0, xp = winx, yp = winy + font->ascent + win.cyo; i < len; ++i) {
 		/* Fetch rune and mode for current glyph. */
 		rune = glyphs[i].u;
 		mode = glyphs[i].mode;
@@ -1161,7 +1255,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 				font = &dc.bfont;
 				frcflags = FRC_BOLD;
 			}
-			yp = winy + font->ascent;
+			yp = winy + font->ascent + win.cyo;
 		}
 
 		/* Lookup character index with default font. */
@@ -1377,12 +1471,12 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 
 	/* Render underline and strikethrough. */
 	if (base.mode & ATTR_UNDERLINE) {
-		XftDrawRect(xw.draw, fg, winx, winy + dc.font.ascent + 1,
+		XftDrawRect(xw.draw, fg, winx, winy + win.cyo + dc.font.ascent + 1,
 				width, 1);
 	}
 
 	if (base.mode & ATTR_STRUCK) {
-		XftDrawRect(xw.draw, fg, winx, winy + 2 * dc.font.ascent / 3,
+		XftDrawRect(xw.draw, fg, winx, winy + win.cyo + 2 * dc.font.ascent / 3,
 				width, 1);
 	}
 
@@ -1699,6 +1793,13 @@ kpress(XEvent *ev)
 		return;
 
 	len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
+    if ( IS_SET(MODE_KBDSELECT) ) {
+		if ( match(XK_NO_MOD, e->state) ||
+            (XK_Shift_L | XK_Shift_R) & e->state )
+            win.mode ^= trt_kbdselect(ksym, buf, len);
+		return;
+    }
+
 	/* 1. shortcuts */
 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
@@ -1870,6 +1971,59 @@ run(void)
 	}
 }
 
+int
+resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst)
+{
+	char **sdst = dst;
+	int *idst = dst;
+	float *fdst = dst;
+
+	char fullname[256];
+	char fullclass[256];
+	char *type;
+	XrmValue ret;
+
+	snprintf(fullname, sizeof(fullname), "%s.%s",
+			opt_name ? opt_name : "st", name);
+	snprintf(fullclass, sizeof(fullclass), "%s.%s",
+			opt_class ? opt_class : "St", name);
+	fullname[sizeof(fullname) - 1] = fullclass[sizeof(fullclass) - 1] = '\0';
+
+	XrmGetResource(db, fullname, fullclass, &type, &ret);
+	if (ret.addr == NULL || strncmp("String", type, 64))
+		return 1;
+
+	switch (rtype) {
+	case STRING:
+		*sdst = ret.addr;
+		break;
+	case INTEGER:
+		*idst = strtoul(ret.addr, NULL, 10);
+		break;
+	case FLOAT:
+		*fdst = strtof(ret.addr, NULL);
+		break;
+	}
+	return 0;
+}
+
+void
+config_init(void)
+{
+	char *resm;
+	XrmDatabase db;
+	ResourcePref *p;
+
+	XrmInitialize();
+	resm = XResourceManagerString(xw.dpy);
+	if (!resm)
+		return;
+
+	db = XrmGetStringDatabase(resm);
+	for (p = resources; p < resources + LEN(resources); p++)
+		resource_load(db, p->name, p->type, p->dst);
+}
+
 void
 usage(void)
 {
@@ -1881,6 +2035,14 @@ usage(void)
 	    " [-n name] [-o file]\n"
 	    "          [-T title] [-t title] [-w windowid] -l line"
 	    " [stty_args ...]\n", argv0, argv0);
+}
+
+void toggle_winmode(int flag) {
+        win.mode ^= flag;
+}
+
+void keyboard_select(const Arg *dummy) {
+    win.mode ^= trt_kbdselect(-1, NULL, 0);
 }
 
 int
@@ -1943,6 +2105,11 @@ run:
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
+
+	if(!(xw.dpy = XOpenDisplay(NULL)))
+		die("Can't open display\n");
+
+	config_init();
 	cols = MAX(cols, 1);
 	rows = MAX(rows, 1);
 	tnew(cols, rows);
