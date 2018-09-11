@@ -1,5 +1,5 @@
 # st
-This is my st fork.
+This is my st (suckless/simple terminal) fork.
 
 # Applied patches
 - [alpha](https://st.suckless.org/patches/alpha/)
@@ -9,6 +9,12 @@ This is my st fork.
 - [vertcenter](https://st.suckless.org/patches/vertcenter/)
 - [xresources](https://st.suckless.org/patches/xresources/)
 - [premultiply_rgb](https://github.com/gnotclub/xst/pull/42)
+
+# Other changes
+- Added `st.alpha` xresources option*
+- Added `st.openurlcmd` xresources option*
+
+* See example `.Xresources` file for usage.
 
 # Rationale
 I really like st but it requires `tmux` to be usable. Because I'm a tilling wm
