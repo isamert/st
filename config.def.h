@@ -164,6 +164,11 @@ static char *openurlcmd[] = { "/bin/sh", "-c",
 
 
 /*
+ * Scroll amount for TERMMOD+U and TERMMOD+D
+ */
+unsigned int scrollamount = 10;
+
+/*
  * Xresources preferences to load at startup
  */
 ResourcePref resources[] = {
@@ -197,7 +202,9 @@ ResourcePref resources[] = {
 		{ "tabspaces",    INTEGER, &tabspaces },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
-		{ "openurlcmd",   STRING,  openurlcmd },
+
+		{ "openurlcmd",     STRING,  openurlcmd },
+		{ "scrollamount",   INTEGER, &scrollamount },
 };
 
 /*
@@ -234,8 +241,10 @@ static Shortcut shortcuts[] = {
 	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 	{ TERMMOD,              XK_I,           iso14755,       {.i =  0} },
-    { TERMMOD,              XK_K,           keyboard_select,{ 0 } },
-	{ TERMMOD,              XK_U,           externalpipe,   {.v = openurlcmd } },
+	{ TERMMOD,              XK_K,           keyboard_select,{ 0 } },
+	{ TERMMOD,              XK_U,           kscrollup,      {.i =  0} },
+	{ TERMMOD,              XK_D,           kscrolldown,    {.i =  0} },
+	{ TERMMOD,              XK_L,           externalpipe,   {.v = openurlcmd } },
 	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
 	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
 };

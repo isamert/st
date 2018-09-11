@@ -1066,6 +1066,9 @@ kscrolldown(const Arg* a)
 {
 	int n = a->i;
 
+	if (n == 0)
+		n = scrollamount;
+
 	if (n < 0)
 		n = term.row + n;
 
@@ -1083,6 +1086,9 @@ void
 kscrollup(const Arg* a)
 {
 	int n = a->i;
+
+	if (n == 0)
+		n = scrollamount;
 
 	if (n < 0)
 		n = term.row + n;

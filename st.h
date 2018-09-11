@@ -151,3 +151,4 @@ extern unsigned int alpha;
 extern unsigned int defaultfg;
 extern unsigned int defaultbg;
 extern MouseKey mkeys[];
+extern unsigned int scrollamount;
