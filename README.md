@@ -32,3 +32,7 @@ change stuff frequently.
     - [ ] Transperancy
 - [ ] Provide a PKGBUILD
     - [ ] Add it to AUR
+
+# Example screenshot
+![transparent st with nvim open](https://raw.githubusercontent.com/isamert/st/master/st-vim.png)
+
