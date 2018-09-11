@@ -3,6 +3,7 @@ This is my st fork.
 
 # Applied patches
 - [alpha](https://st.suckless.org/patches/alpha/)
+- [externalpipe](https://st.suckless.org/patches/externalpipe/)
 - [keyboard_select](https://st.suckless.org/patches/keyboard_select/)
 - [scrollback](https://st.suckless.org/patches/scrollback/) (all variations)
 - [vertcenter](https://st.suckless.org/patches/vertcenter/)
@@ -20,7 +21,7 @@ change stuff frequently.
     - [ ] Shortcuts
     - [ ] XResources
 - [ ] Extend xresources
-- [ ] Add urlviewer
+- [X] Add urlviewer
 - [ ] Expose some properties as CLI args
     - [ ] Transperancy
 - [ ] Provide a PKGBUILD

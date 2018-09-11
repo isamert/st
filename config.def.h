@@ -155,6 +155,15 @@ static unsigned int mousebg = 0;
 static unsigned int defaultattr = 11;
 
 /*
+ * Command used to view url's in an external application.
+ *
+ */
+static char *openurlcmd[] = { "/bin/sh", "-c",
+    "xurls | dmenu | xargs -r $BROWSER",
+    NULL };
+
+
+/*
  * Xresources preferences to load at startup
  */
 ResourcePref resources[] = {
@@ -188,6 +197,7 @@ ResourcePref resources[] = {
 		{ "tabspaces",    INTEGER, &tabspaces },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
+		{ "openurlcmd",   STRING,  openurlcmd },
 };
 
 /*
@@ -225,6 +235,7 @@ static Shortcut shortcuts[] = {
 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 	{ TERMMOD,              XK_I,           iso14755,       {.i =  0} },
     { TERMMOD,              XK_Escape,      keyboard_select,{ 0 } },
+	{ TERMMOD,              XK_U,           externalpipe,   {.v = openurlcmd } },
 	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
 	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
 };
