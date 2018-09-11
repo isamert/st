@@ -4,7 +4,7 @@ VERSION = 0.8.1
 # Customize below to fit your system
 
 # paths
-PREFIX = /usr/local
+PREFIX = /usr
 MANPREFIX = $(PREFIX)/share/man
 
 X11INC = /usr/X11R6/include
@@ -20,7 +20,7 @@ LIBS = -L/usr/lib -lc -L${X11LIB} -lm -lrt -lX11 -lutil -lXft -lXrender\
 
 # flags
 CPPFLAGS = -DVERSION=\"$(VERSION)\" -D_XOPEN_SOURCE=600
-STCFLAGS = $(INCS) $(CPPFLAGS) $(CFLAGS)
+STCFLAGS = -O3 $(INCS) $(CPPFLAGS) $(CFLAGS)
 STLDFLAGS = $(LIBS) $(LDFLAGS)
 
 # OpenBSD:
