@@ -257,6 +257,7 @@ static char *opt_io    = NULL;
 static char *opt_line  = NULL;
 static char *opt_name  = NULL;
 static char *opt_title = NULL;
+static int opt_alpha = -1;
 
 static int oldbutton = 3; /* button event on startup: 3 = release */
 
@@ -2027,7 +2028,7 @@ config_init(void)
 void
 usage(void)
 {
-	die("usage: %s [-aiv] [-c class] [-f font] [-g geometry]"
+	die("usage: %s [-aiv] [-A alpha] [-c class] [-f font] [-g geometry]"
 	    " [-n name] [-o file]\n"
 	    "          [-T title] [-t title] [-w windowid]"
 	    " [[-e] command [args ...]]\n"
@@ -2054,6 +2055,10 @@ main(int argc, char *argv[])
 
 	ARGBEGIN {
 	case 'a':
+		allowaltscreen = 0;
+		break;
+	case 'A':
+ 		opt_alpha = atoi(EARGF(usage()));
 		allowaltscreen = 0;
 		break;
 	case 'c':
@@ -2110,6 +2115,10 @@ run:
 		die("Can't open display\n");
 
 	config_init();
+	// Use argument values after loading configs to be able to override them.
+	if (opt_alpha >= 0)
+		alpha = opt_alpha;
+
 	cols = MAX(cols, 1);
 	rows = MAX(rows, 1);
 	tnew(cols, rows);

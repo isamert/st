@@ -42,8 +42,8 @@ static unsigned int tripleclicktimeout = 600;
 int allowaltscreen = 1;
 
 /* frames per second st should at maximum draw to the screen */
-static unsigned int xfps = 120;
-static unsigned int actionfps = 30;
+static unsigned int xfps = 300;
+static unsigned int actionfps = 75;
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
@@ -172,39 +172,41 @@ unsigned int scrollamount = 10;
  * Xresources preferences to load at startup
  */
 ResourcePref resources[] = {
-		{ "font",         STRING,  &font },
-		{ "alpha",        INTEGER, &alpha },
-		{ "color0",       STRING,  &colorname[0] },
-		{ "color1",       STRING,  &colorname[1] },
-		{ "color2",       STRING,  &colorname[2] },
-		{ "color3",       STRING,  &colorname[3] },
-		{ "color4",       STRING,  &colorname[4] },
-		{ "color5",       STRING,  &colorname[5] },
-		{ "color6",       STRING,  &colorname[6] },
-		{ "color7",       STRING,  &colorname[7] },
-		{ "color8",       STRING,  &colorname[8] },
-		{ "color9",       STRING,  &colorname[9] },
-		{ "color10",      STRING,  &colorname[10] },
-		{ "color11",      STRING,  &colorname[11] },
-		{ "color12",      STRING,  &colorname[12] },
-		{ "color13",      STRING,  &colorname[13] },
-		{ "color14",      STRING,  &colorname[14] },
-		{ "color15",      STRING,  &colorname[15] },
-		{ "background",   STRING,  &colorname[256] },
-		{ "foreground",   STRING,  &colorname[257] },
+		{ "font",            STRING,  &font },
+		{ "alpha",           INTEGER, &alpha },
+		{ "color0",          STRING,  &colorname[0] },
+		{ "color1",          STRING,  &colorname[1] },
+		{ "color2",          STRING,  &colorname[2] },
+		{ "color3",          STRING,  &colorname[3] },
+		{ "color4",          STRING,  &colorname[4] },
+		{ "color5",          STRING,  &colorname[5] },
+		{ "color6",          STRING,  &colorname[6] },
+		{ "color7",          STRING,  &colorname[7] },
+		{ "color8",          STRING,  &colorname[8] },
+		{ "color9",          STRING,  &colorname[9] },
+		{ "color10",         STRING,  &colorname[10] },
+		{ "color11",         STRING,  &colorname[11] },
+		{ "color12",         STRING,  &colorname[12] },
+		{ "color13",         STRING,  &colorname[13] },
+		{ "color14",         STRING,  &colorname[14] },
+		{ "color15",         STRING,  &colorname[15] },
+		{ "background",      STRING,  &colorname[256] },
+		{ "foreground",      STRING,  &colorname[257] },
 		/*{ "cursorColor",  STRING,  &colorname[258] },*/ // FIXME
-		{ "termname",     STRING,  &termname },
-		{ "shell",        STRING,  &shell },
-		{ "xfps",         INTEGER, &xfps },
-		{ "actionfps",    INTEGER, &actionfps },
-		{ "blinktimeout", INTEGER, &blinktimeout },
-		{ "bellvolume",   INTEGER, &bellvolume },
-		{ "tabspaces",    INTEGER, &tabspaces },
-		{ "cwscale",      FLOAT,   &cwscale },
-		{ "chscale",      FLOAT,   &chscale },
+		{ "termname",        STRING,  &termname },
+		{ "shell",           STRING,  &shell },
+		{ "xfps",            INTEGER, &xfps },
+		{ "actionfps",       INTEGER, &actionfps },
+		{ "blinktimeout",    INTEGER, &blinktimeout },
+		{ "bellvolume",      INTEGER, &bellvolume },
+		{ "tabspaces",       INTEGER, &tabspaces },
+		{ "cwscale",         FLOAT,   &cwscale },
+		{ "chscale",         FLOAT,   &chscale },
 
-		{ "openurlcmd",     STRING,  openurlcmd },
-		{ "scrollamount",   INTEGER, &scrollamount },
+		{ "openurlcmd",      STRING,  openurlcmd },
+		{ "scrollamount",    INTEGER, &scrollamount },
+		{ "borderpx",        INTEGER, &borderpx },
+		{ "cursorthickness", INTEGER, &cursorthickness },
 };
 
 /*

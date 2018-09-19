@@ -4,6 +4,8 @@ st \- simple terminal
 .SH SYNOPSIS
 .B st
 .RB [ \-aiv ]
+.RB [ \-A
+.IR alpha ]
 .RB [ \-c
 .IR class ]
 .RB [ \-f
@@ -28,6 +30,8 @@ st \- simple terminal
 .PP
 .B st
 .RB [ \-aiv ]
+.RB [ \-A
+.IR alpha ]
 .RB [ \-c
 .IR class ]
 .RB [ \-f
@@ -55,6 +59,9 @@ is a simple terminal emulator.
 .B \-a
 disable alternate screens in terminal
 .TP
+.BI \-A " alpha"
+defines the alpha value of the background. Alpha 255 means terminal will be
+opaque, 0 -- fully transparent.
 .BI \-c " class"
 defines the window class (default $TERM).
 .TP
