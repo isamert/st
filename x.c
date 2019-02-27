@@ -62,10 +62,6 @@ typedef struct {
 #define XK_NO_MOD     0
 #define XK_SWITCH_MOD (1<<13)
 
-/* alpha */
-#define OPAQUE 0Xff
-#define USE_ARGB (alpha != OPAQUE && opt_embed == NULL)
-
 /* function definitions used in config.h */
 static void clipcopy(const Arg *);
 static void clippaste(const Arg *);
@@ -249,6 +245,7 @@ static char *usedfont = NULL;
 static double usedfontsize = 0;
 static double defaultfontsize = 0;
 
+static char *opt_alpha = NULL;
 static char *opt_class = NULL;
 static char **opt_cmd  = NULL;
 static char *opt_embed = NULL;
@@ -257,7 +254,6 @@ static char *opt_io    = NULL;
 static char *opt_line  = NULL;
 static char *opt_name  = NULL;
 static char *opt_title = NULL;
-static int opt_alpha = -1;
 
 static int oldbutton = 3; /* button event on startup: 3 = release */
 
@@ -438,14 +434,13 @@ bpress(XEvent *e)
 		return;
 	}
 
-	if (IS_SET(MODE_ALTSCREEN))
-		for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
-			if (e->xbutton.button == ms->b
-					&& match(ms->mask, e->xbutton.state)) {
-				ttywrite(ms->s, strlen(ms->s), 1);
-				return;
-			}
+	for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
+		if (e->xbutton.button == ms->b
+				&& match(ms->mask, e->xbutton.state)) {
+			ttywrite(ms->s, strlen(ms->s), 1);
+			return;
 		}
+	}
 
 	for (mk = mkeys; mk < mkeys + LEN(mkeys); mk++) {
 		if (e->xbutton.button == mk->b
@@ -764,12 +759,12 @@ xloadcols(void)
 	static int loaded;
 	Color *cp;
 
-	dc.collen = MAX(LEN(colorname), 256);
-	dc.col = xmalloc(dc.collen * sizeof(Color));
-
 	if (loaded) {
 		for (cp = dc.col; cp < &dc.col[dc.collen]; ++cp)
 			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
+	} else {
+		dc.collen = MAX(LEN(colorname), 256);
+		dc.col = xmalloc(dc.collen * sizeof(Color));
 	}
 
 	for (i = 0; i < dc.collen; i++)
@@ -781,20 +776,16 @@ xloadcols(void)
 		}
 
 	/* set alpha value of bg color */
-	if (USE_ARGB) {
-        // https://github.com/gnotclub/xst/pull/42
-		// X11 uses premultiplied alpha values (i.e. 50% opacity white is
-		// 0x7f7f7f7f, not 0x7fffffff), so multiply color by alpha
-		dc.col[defaultbg].color.alpha = (0xffff * alpha) / OPAQUE; //0xcccc;
-		dc.col[defaultbg].color.red   = (dc.col[defaultbg].color.red   * alpha) / OPAQUE;
-		dc.col[defaultbg].color.green = (dc.col[defaultbg].color.green * alpha) / OPAQUE;
-		dc.col[defaultbg].color.blue  = (dc.col[defaultbg].color.blue  * alpha) / OPAQUE;
+	if (opt_alpha)
+		alpha = strtof(opt_alpha, NULL);
+	dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
+	dc.col[defaultbg].pixel &= 0x00FFFFFF;
+	dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
 
-		dc.col[defaultbg].pixel =
-			((((dc.col[defaultbg].pixel & 0x00ff00ff) * alpha) / OPAQUE) & 0x00ff00ff) |
-			((((dc.col[defaultbg].pixel & 0x0000ff00) * alpha) / OPAQUE) & 0x0000ff00) |
-	        alpha << 24;
-	}
+	dc.col[defaultbg].color.red   = (dc.col[defaultbg].color.red   * alpha);
+	dc.col[defaultbg].color.green = (dc.col[defaultbg].color.green * alpha);
+	dc.col[defaultbg].color.blue  = (dc.col[defaultbg].color.blue  * alpha);
+
 	loaded = 1;
 }
 
@@ -814,17 +805,6 @@ xsetcolorname(int x, const char *name)
 	dc.col[x] = ncolor;
 
 	return 0;
-}
-
-void
-xtermclear(int col1, int row1, int col2, int row2)
-{
-	XftDrawRect(xw.draw,
-			&dc.col[IS_SET(MODE_REVERSE) ? defaultfg : defaultbg],
-			borderpx + col1 * win.cw,
-			borderpx + row1 * win.ch,
-			(col2-col1+1) * win.cw,
-			(row2-row1+1) * win.ch);
 }
 
 /*
@@ -1063,44 +1043,21 @@ xinit(int cols, int rows)
 	Window parent;
 	pid_t thispid = getpid();
 	XColor xmousefg, xmousebg;
+	XWindowAttributes attr;
+	XVisualInfo vis;
 
-	if (!(xw.dpy = XOpenDisplay(NULL)))
-		die("can't open display\n");
 	xw.scr = XDefaultScreen(xw.dpy);
-	xw.depth = (USE_ARGB) ? 32: XDefaultDepth(xw.dpy, xw.scr);
-	if (!USE_ARGB)
-		xw.vis = XDefaultVisual(xw.dpy, xw.scr);
-	else {
-		XVisualInfo *vis;
-		XRenderPictFormat *fmt;
-		int nvi;
-		int i;
 
-		XVisualInfo tpl = {
-			.screen = xw.scr,
-			.depth = 32,
-			.class = TrueColor
-		};
-
-		vis = XGetVisualInfo(xw.dpy,
-				VisualScreenMask | VisualDepthMask | VisualClassMask,
-				&tpl, &nvi);
-		xw.vis = NULL;
-		for (i = 0; i < nvi; i++) {
-			fmt = XRenderFindVisualFormat(xw.dpy, vis[i].visual);
-			if (fmt->type == PictTypeDirect && fmt->direct.alphaMask) {
-				xw.vis = vis[i].visual;
-				break;
-			}
-		}
-
-		XFree(vis);
-
-		if (!xw.vis) {
-			fprintf(stderr, "Couldn't find ARGB visual.\n");
-			exit(1);
-		}
+	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0)))) {
+		parent = XRootWindow(xw.dpy, xw.scr);
+		xw.depth = 32;
+	} else {
+		XGetWindowAttributes(xw.dpy, parent, &attr);
+		xw.depth = attr.depth;
 	}
+
+	XMatchVisualInfo(xw.dpy, xw.scr, xw.depth, TrueColor, &vis);
+	xw.vis = vis.visual;
 
 	/* font */
 	if (!FcInit())
@@ -1110,11 +1067,7 @@ xinit(int cols, int rows)
 	xloadfonts(usedfont, 0);
 
 	/* colors */
-	if (!USE_ARGB)
-		xw.cmap = XDefaultColormap(xw.dpy, xw.scr);
-	else
-		xw.cmap = XCreateColormap(xw.dpy, XRootWindow(xw.dpy, xw.scr),
-				xw.vis, None);
+	xw.cmap = XCreateColormap(xw.dpy, parent, xw.vis, None);
 	xloadcols();
 
 	/* adjust fixed window geometry */
@@ -1134,8 +1087,6 @@ xinit(int cols, int rows)
 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
 	xw.attrs.colormap = xw.cmap;
 
-	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0))))
-		parent = XRootWindow(xw.dpy, xw.scr);
 	xw.win = XCreateWindow(xw.dpy, parent, xw.l, xw.t,
 			win.w, win.h, 0, xw.depth, InputOutput,
 			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
@@ -1144,8 +1095,7 @@ xinit(int cols, int rows)
 	memset(&gcvalues, 0, sizeof(gcvalues));
 	gcvalues.graphics_exposures = False;
 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h, xw.depth);
-	dc.gc = XCreateGC(xw.dpy, (USE_ARGB) ? xw.buf: parent,
-			GCGraphicsExposures, &gcvalues);
+	dc.gc = XCreateGC(xw.dpy, xw.buf, GCGraphicsExposures, &gcvalues);
 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
@@ -2058,8 +2008,7 @@ main(int argc, char *argv[])
 		allowaltscreen = 0;
 		break;
 	case 'A':
- 		opt_alpha = atoi(EARGF(usage()));
-		allowaltscreen = 0;
+		opt_alpha = EARGF(usage());
 		break;
 	case 'c':
 		opt_class = EARGF(usage());
@@ -2115,10 +2064,6 @@ run:
 		die("Can't open display\n");
 
 	config_init();
-	// Use argument values after loading configs to be able to override them.
-	if (opt_alpha >= 0)
-		alpha = opt_alpha;
-
 	cols = MAX(cols, 1);
 	rows = MAX(rows, 1);
 	tnew(cols, rows);

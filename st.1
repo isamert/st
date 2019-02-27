@@ -60,8 +60,8 @@ is a simple terminal emulator.
 disable alternate screens in terminal
 .TP
 .BI \-A " alpha"
-defines the alpha value of the background. Alpha 255 means terminal will be
-opaque, 0 -- fully transparent.
+defines the alpha value of the background. Between 0-1.
+.TP
 .BI \-c " class"
 defines the window class (default $TERM).
 .TP
@@ -166,10 +166,6 @@ Copy the selected text to the clipboard selection.
 .TP
 .B Ctrl-Shift-v
 Paste from the clipboard selection.
-.TP
-.B Ctrl-Shift-i
-Launch dmenu to enter a unicode codepoint and send the corresponding glyph
-to st.
 .SH CUSTOMIZATION
 .B st
 can be customized by creating a custom config.h and (re)compiling the source

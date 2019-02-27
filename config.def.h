@@ -42,8 +42,8 @@ static unsigned int tripleclicktimeout = 600;
 int allowaltscreen = 1;
 
 /* frames per second st should at maximum draw to the screen */
-static unsigned int xfps = 300;
-static unsigned int actionfps = 75;
+static unsigned int xfps = 120;
+static unsigned int actionfps = 30;
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
@@ -83,7 +83,7 @@ char *termname = "st-256color";
 unsigned int tabspaces = 8;
 
 /* bg opacity */
-unsigned int alpha = 0xff;
+float alpha = 0.8;
 
 /* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
@@ -122,8 +122,8 @@ static const char *colorname[] = {
  */
 unsigned int defaultbg = 256;
 unsigned int defaultfg = 257;
-unsigned int defaultcs = 257;
-unsigned int defaultrcs = 256;
+static unsigned int defaultcs = 257;
+static unsigned int defaultrcs = 256;
 
 /*
  * Default shape of cursor
@@ -155,13 +155,11 @@ static unsigned int mousebg = 0;
 static unsigned int defaultattr = 11;
 
 /*
- * Command used to view url's in an external application.
- *
+ * Command used to display URLs
  */
 static char *openurlcmd[] = { "/bin/sh", "-c",
-    "xurls | dmenu | xargs -r $BROWSER",
-    NULL };
-
+	"xurls | dmenu | xargs -r $BROWSER",
+	NULL };
 
 /*
  * Scroll amount for TERMMOD+U and TERMMOD+D
@@ -172,41 +170,39 @@ unsigned int scrollamount = 10;
  * Xresources preferences to load at startup
  */
 ResourcePref resources[] = {
-		{ "font",            STRING,  &font },
-		{ "alpha",           INTEGER, &alpha },
-		{ "color0",          STRING,  &colorname[0] },
-		{ "color1",          STRING,  &colorname[1] },
-		{ "color2",          STRING,  &colorname[2] },
-		{ "color3",          STRING,  &colorname[3] },
-		{ "color4",          STRING,  &colorname[4] },
-		{ "color5",          STRING,  &colorname[5] },
-		{ "color6",          STRING,  &colorname[6] },
-		{ "color7",          STRING,  &colorname[7] },
-		{ "color8",          STRING,  &colorname[8] },
-		{ "color9",          STRING,  &colorname[9] },
-		{ "color10",         STRING,  &colorname[10] },
-		{ "color11",         STRING,  &colorname[11] },
-		{ "color12",         STRING,  &colorname[12] },
-		{ "color13",         STRING,  &colorname[13] },
-		{ "color14",         STRING,  &colorname[14] },
-		{ "color15",         STRING,  &colorname[15] },
-		{ "background",      STRING,  &colorname[256] },
-		{ "foreground",      STRING,  &colorname[257] },
-		/*{ "cursorColor",  STRING,  &colorname[258] },*/ // FIXME
-		{ "termname",        STRING,  &termname },
-		{ "shell",           STRING,  &shell },
-		{ "xfps",            INTEGER, &xfps },
-		{ "actionfps",       INTEGER, &actionfps },
-		{ "blinktimeout",    INTEGER, &blinktimeout },
-		{ "bellvolume",      INTEGER, &bellvolume },
-		{ "tabspaces",       INTEGER, &tabspaces },
-		{ "cwscale",         FLOAT,   &cwscale },
-		{ "chscale",         FLOAT,   &chscale },
-
-		{ "openurlcmd",      STRING,  openurlcmd },
-		{ "scrollamount",    INTEGER, &scrollamount },
-		{ "borderpx",        INTEGER, &borderpx },
-		{ "cursorthickness", INTEGER, &cursorthickness },
+		{ "font",         STRING,  &font },
+		{ "color0",       STRING,  &colorname[0] },
+		{ "color1",       STRING,  &colorname[1] },
+		{ "color2",       STRING,  &colorname[2] },
+		{ "color3",       STRING,  &colorname[3] },
+		{ "color4",       STRING,  &colorname[4] },
+		{ "color5",       STRING,  &colorname[5] },
+		{ "color6",       STRING,  &colorname[6] },
+		{ "color7",       STRING,  &colorname[7] },
+		{ "color8",       STRING,  &colorname[8] },
+		{ "color9",       STRING,  &colorname[9] },
+		{ "color10",      STRING,  &colorname[10] },
+		{ "color11",      STRING,  &colorname[11] },
+		{ "color12",      STRING,  &colorname[12] },
+		{ "color13",      STRING,  &colorname[13] },
+		{ "color14",      STRING,  &colorname[14] },
+		{ "color15",      STRING,  &colorname[15] },
+		{ "background",   STRING,  &colorname[256] },
+		{ "foreground",   STRING,  &colorname[257] },
+		{ "cursorColor",  STRING,  &colorname[258] },
+		{ "termname",     STRING,  &termname },
+		{ "shell",        STRING,  &shell },
+		{ "xfps",         INTEGER, &xfps },
+		{ "actionfps",    INTEGER, &actionfps },
+		{ "blinktimeout", INTEGER, &blinktimeout },
+		{ "bellvolume",   INTEGER, &bellvolume },
+		{ "tabspaces",    INTEGER, &tabspaces },
+		{ "borderpx",     INTEGER, &borderpx },
+		{ "cwscale",      FLOAT,   &cwscale },
+		{ "chscale",      FLOAT,   &chscale },
+		{ "alpha",        FLOAT,   &alpha },
+		{ "openurlcmd",   STRING,  openurlcmd },
+		{ "scrollamount", INTEGER, &scrollamount },
 };
 
 /*
@@ -221,8 +217,8 @@ static MouseShortcut mshortcuts[] = {
 
 MouseKey mkeys[] = {
 	/* button               mask            function        argument */
-	{ Button4,              XK_NO_MOD,      kscrollup,      {.i =  1} },
-	{ Button5,              XK_NO_MOD,      kscrolldown,    {.i =  1} },
+	{ Button4,              ShiftMask,      kscrollup,      {.i =  1} },
+	{ Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
 };
 
 /* Internal keyboard shortcuts. */
@@ -237,18 +233,21 @@ static Shortcut shortcuts[] = {
 	{ XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
 	{ TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
 	{ TERMMOD,              XK_Next,        zoom,           {.f = -1} },
+	{ TERMMOD,              XK_plus,        zoom,           {.f = +1} },
+	{ TERMMOD,              XK_minus,       zoom,           {.f = -1} },
+	{ TERMMOD,              XK_underscore,  zoom,           {.f = -1} },
+	{ TERMMOD,              XK_0,           zoomreset,      {.f =  0} },
+	{ TERMMOD,              XK_parenright,  zoomreset,      {.f =  0} },
 	{ TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
 	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
 	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
 	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
+	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
-	{ TERMMOD,              XK_I,           iso14755,       {.i =  0} },
 	{ TERMMOD,              XK_K,           keyboard_select,{ 0 } },
+	{ TERMMOD,              XK_L,           externalpipe,   { .v = openurlcmd } },
 	{ TERMMOD,              XK_U,           kscrollup,      {.i =  0} },
-	{ TERMMOD,              XK_D,           kscrolldown,    {.i =  0} },
-	{ TERMMOD,              XK_L,           externalpipe,   {.v = openurlcmd } },
-	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
-	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
+	{ TERMMOD,              XK_D,           kscrolldown,    {.i = 0} }
 };
 
 /*
